@@ -43,9 +43,9 @@ const SubmitObituary = () => {
         <div className="flex min-h-screen flex-col bg-gray-50">
             <Head title="Submit Obituary" />
 
-            <header className="bg-blue-900 py-6 text-white shadow-md">
+            <header className="py-6 shadow-md">
                 <div className="container mx-auto px-4">
-                    <a href="/" className="text-xl font-semibold transition hover:text-blue-200">
+                    <a href="/" className="text-xl font-semibold text-blue-900 transition hover:text-blue-700">
                         ← Back to Home
                     </a>
                 </div>

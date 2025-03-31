@@ -10,46 +10,63 @@ use Inertia\Inertia;
 
 class ObituaryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $obituaries = Obituary::orderBy('submission_date', 'desc')->get();
-        return inertia('ViewObituaries', ['obituaries' => $obituaries]);
+        $obituaries = Obituary::query()
+            ->orderBy('submission_date', 'desc')
+            ->paginate(8); // 8 items per page for our 4x2 grid
+            
+        return inertia('ViewObituaries', [
+            'obituaries' => $obituaries,
+            'filters' => $request->only(['search']) // For future search functionality
+        ]);
     }
 
     public function store(Request $request)
     {
-        // Validate user input
         $validator = Validator::make($request->all(), [
-            'name' => 'required|max:100',  // Increased to match the form
-            'date_of_birth' => 'required|date',
-            'date_of_death' => 'required|date',
-            'content' => 'required|max:1000', // Increased to match the form
-            'author' => 'required|max:100',  // Increased to match the form
-            'slug' => 'nullable|unique:obituary_platform,slug|max:255',
+            'name' => 'required|max:100',
+            'date_of_birth' => 'required|date|before_or_equal:today',
+            'date_of_death' => 'required|date|after_or_equal:date_of_birth|before_or_equal:today',
+            'content' => 'required|max:1000',
+            'author' => 'required|max:100',
+            'slug' => 'nullable|unique:obituaries,slug|max:255',
         ]);
 
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
-                ->withInput();
+                ->withInput()
+                ->with('error', 'Please correct the errors below.');
         }
 
-        // Ensure slug is unique, generate if missing
-        $slug = $request->slug ?? Str::slug($request->name);
-        if (Obituary::where('slug', $slug)->exists()) {
-            $slug .= '-' . time(); // Append timestamp to avoid duplicates
-        }
+        $slug = $this->generateUniqueSlug($request);
 
-        // Create new obituary entry
         Obituary::create([
             'name' => $request->name,
             'date_of_birth' => $request->date_of_birth,
             'date_of_death' => $request->date_of_death,
             'content' => $request->content,
             'author' => $request->author,
-            'slug' => Str::slug($request->name . '-' . time()),
+            'slug' => $slug,
+            'submission_date' => now(), // Ensure submission date is set
         ]);
 
-        return redirect()->route('view-obituaries')->with('success', 'Obituary submitted successfully.');
+        return redirect()->route('view-obituaries')
+            ->with('success', 'Obituary submitted successfully.');
+    }
+
+    protected function generateUniqueSlug(Request $request): string
+    {
+        $slug = $request->slug ?? Str::slug($request->name);
+        $originalSlug = $slug;
+        $count = 1;
+
+        while (Obituary::where('slug', $slug)->exists()) {
+            $slug = "{$originalSlug}-{$count}";
+            $count++;
+        }
+
+        return $slug;
     }
 }
